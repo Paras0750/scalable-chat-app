@@ -9,15 +9,27 @@ interface Room {
 const rooms: Record<string, Room> = {}
 
 wss.on('connection', function connection(ws) {
-    const roomId = 1
-    if (!rooms[roomId]) {
-        rooms[roomId] = {
-            sockets: [ws]
-        }
-    }
-    rooms[roomId].sockets.push(ws)
 
     ws.on('error', console.error);
 
-    ws.send('something');
+    ws.on('message', (data: string) => {
+        const parsedMessage = JSON.parse(data)
+        if (!parsedMessage.room) return
+        if (parsedMessage.type === 'join-room') {
+            if (!rooms[parsedMessage.room]) {
+                rooms[parsedMessage.room] = {
+                    sockets: []
+                }
+            }
+            rooms[parsedMessage.room]!.sockets.push(ws)
+
+        }
+        if (parsedMessage.type === 'chat') {
+            if (rooms[parsedMessage.room]) {
+                rooms[parsedMessage.room]!.sockets.forEach((socket: WebSocket) => {
+                    socket.send(JSON.stringify(parsedMessage))
+                })
+            }
+        }
+    })
 });
